@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>武汉都市圈科技企业空间分布专题地图</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.search-group { display:inline-flex; align-items:center; margin-left:8px; position:relative; }
+#searchInput { width:260px; max-width:100%; padding:6px 28px 6px 10px; border:1px solid rgba(76,175,80,0.3); border-radius:4px; background:transparent; font-size:13px; outline:none; transition:border-color .3s; color:#fff; }
+#searchInput::placeholder { color:rgba(255,255,255,0.55); }
+#searchInput:focus { border-color:#4caf50; }
+.search-clear { display:none; position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; color:rgba(255,255,255,0.5); font-size:14px; cursor:pointer; padding:2px 4px; line-height:1; border-radius:2px; transition:color .2s; }
+.search-clear:hover { color:#fff; }
+#searchInput:not(:placeholder-shown) ~ .search-clear { display:block; }
+.search-dropdown { display:none; position:absolute; top:100%; left:0; right:0; z-index:200; background:rgba(6,20,30,0.95); backdrop-filter:blur(8px); border:1px solid rgba(76,175,80,0.2); border-radius:0 0 4px 4px; max-height:320px; overflow-y:auto; min-width:100%; margin-top:1px; }
+.search-dropdown-item { padding:7px 10px; font-size:12px; color:rgba(255,255,255,0.85); cursor:pointer; border-bottom:1px solid rgba(76,175,80,0.06); transition:background .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.search-dropdown-item:last-child { border-bottom:none; }
+.search-dropdown-item:hover,.search-dropdown-item.highlight { background:rgba(76,175,80,0.12); color:#fff; }
+.search-dropdown-item .sd-city { color:rgba(255,255,255,0.4); font-size:10px; margin-left:6px; }
+.search-dropdown-item .sd-nomatch { color:rgba(255,255,255,0.35); text-align:center; padding:14px 0; cursor:default; white-space:normal; }
+.search-toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); z-index:99999; background:rgba(0,0,0,0.82); color:rgba(255,255,255,0.9); padding:8px 20px; border-radius:6px; font-size:13px; pointer-events:none; opacity:0; transition:opacity .3s; }
+.search-toast.show { opacity:1; }
+.scale-toggle-group { display:inline-flex; gap:2px; margin-left:8px; padding:2px; border:1px solid rgba(76,175,80,0.2); border-radius:4px; }
+.scale-btn { padding:4px 10px; font-size:12px; border:none; border-radius:3px; background:transparent; color:rgba(255,255,255,0.85); cursor:pointer; transition:all .25s; }
+.scale-btn:hover { background:rgba(76,175,80,0.15); color:#fff; }
+.scale-btn.active { background:#4caf50; color:#fff; }
+.fullscreen-btn { font-size:18px; line-height:1; }
+.filter-bar .btn { color:rgba(255,255,255,0.85); }
+.dark-toggle { background:none; border:1px solid rgba(255,255,255,0.3); border-radius:4px; padding:4px 8px; font-size:16px; cursor:pointer; margin-left:8px; transition:all .3s; vertical-align:middle; }
+.dark-toggle:hover { background:rgba(255,255,255,0.15); }
+#searchResultPanel { display:none; } #searchResultPanel.show { display:block; }
+#searchResultPanel .sr-item { padding:6px 8px; border-bottom:1px solid rgba(76,175,80,0.06); cursor:pointer; transition:background .15s; }
+#searchResultPanel .sr-item:hover { background:var(--primary-dim); }
+#searchResultPanel .sr-item .sr-name { font-size:12px; color:var(--text-primary); font-weight:500; }
+#searchResultPanel .sr-item .sr-info { font-size:10px; color:var(--text-muted); margin-top:1px; }
+body.dark #searchInput { background:transparent; color:#fff; border-color:rgba(76,175,80,0.3); }
+body.dark #searchInput::placeholder { color:rgba(255,255,255,0.4); }
+body.dark .search-clear { color:rgba(255,255,255,0.4); }
+body.dark .search-clear:hover { color:#fff; }
+body.dark .scale-toggle-group { border-color:rgba(76,175,80,0.25); }
+body.dark .scale-btn { color:rgba(255,255,255,0.85); }
+body.dark .scale-btn:hover { background:rgba(76,175,80,0.15); color:#fff; }
+body.dark .scale-btn.active { background:#4caf50; color:#fff; }
+body.dark .dark-toggle { border-color:rgba(255,255,255,0.2); }
+body.dark #searchResultPanel .sr-item .sr-name { color:#b2dfdb; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+
+<div id="bg-grid"></div>
+<svg id="svg-decor" viewBox="0 0 1200 800" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="glowLine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(76,175,80,0)" />
+      <stop offset="50%" stop-color="rgba(76,175,80,0.08)" />
+      <stop offset="100%" stop-color="rgba(76,175,80,0)" />
+    </linearGradient>
+  </defs>
+  <path d="M0,40 Q300,10 600,60 T1200,30" stroke="url(#glowLine)" stroke-width="1" fill="none"/>
+  <path d="M0,760 Q300,790 600,740 T1200,770" stroke="url(#glowLine)" stroke-width="1" fill="none"/>
+</svg>
+
+<div id="loading-overlay">
+  <div class="title">武汉都市圈科技企业空间分布</div>
+  <div id="loading-progress"><div class="bar" id="progressBar"></div></div>
+  <div id="loading-text">初始化引擎...</div>
+</div>
+
+<div class="header" id="header">
+  <div class="header-left">
+    <div class="logo-icon">武</div>
+    <h1>武汉都市圈 <span>科技企业空间分布</span></h1>
+  </div>
+  <div class="header-right" id="headerStats">
+    <span class="stat-badge"><strong id="totalCount">0</strong> 家企业</span>
+    <span class="stat-badge"><strong>9</strong> 城市 · <strong id="districtCount">0</strong> 区县</span>
+    <button class="dark-toggle" id="darkToggle" title="切换夜间模式">🌙</button>
+  </div>
+</div>
+
+<div class="filter-bar" id="filterBar">
+  <span class="ft">🌿 筛选</span>
+  <select id="filterCity" aria-label="按城市筛选">
+    <option value="all">全部城市</option>
+  </select>
+  <select id="filterScale" aria-label="按规模筛选">
+    <option value="all">全部规模</option>
+    <option value="large">大型企业</option>
+    <option value="medium">中型企业</option>
+    <option value="small">小型企业</option>
+  </select>
+  <select id="filterIndustry" aria-label="按行业筛选"></select>
+  <div class="search-group" id="searchGroup">
+    <input type="text" id="searchInput" placeholder="🔍 搜索企业名称／城市／区县／行业" aria-label="搜索企业" autocomplete="off" />
+    <button class="search-clear" id="searchClear" tabindex="-1">✕</button>
+    <div class="search-dropdown" id="searchDropdown"></div>
+  </div>
+  <div class="search-toast" id="searchToast"></div>
+  <div class="scale-toggle-group" id="scaleToggleGroup">
+    <button class="scale-btn" data-scale="all" title="显示全部">全部</button>
+    <button class="scale-btn" data-scale="large" title="大型企业">大型</button>
+    <button class="scale-btn" data-scale="medium" title="中型企业">中型</button>
+    <button class="scale-btn" data-scale="small" title="小型企业">小型</button>
+  </div>
+  <div class="btn-group">
+    <button class="btn filter-reset" id="resetFilter">重置</button>
+    <button class="btn fullscreen-btn" id="fullscreenBtn" title="全屏">⛶</button>
+  </div>
+</div>
+
+<div class="main-container">
+  <div class="map-wrapper">
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+    <div class="map-title-overlay" id="mapTitle">武汉都市圈科技企业分布 · 1+8 城市圈</div>
+    <div id="map"></div>
+    <div id="breadcrumb"><span class="crumb current" id="bcRoot">武汉都市圈</span></div>
+    <div id="drillDetail"></div>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="panel" id="panelLegend">
+      <h3>图例</h3>
+      <div class="legend-section">
+        <div class="legend-label">▎各区县企业密度</div>
+        <div class="legend-item"><span class="legend-color" style="background:#1b5e20;"></span> 高密度区 <span class="density-range"></span></div>
+        <div class="legend-item"><span class="legend-color" style="background:#388e3c;"></span> 中高密度区 <span class="density-range"></span></div>
+        <div class="legend-item"><span class="legend-color" style="background:#4caf50;"></span> 中等密度区 <span class="density-range"></span></div>
+        <div class="legend-item"><span class="legend-color" style="background:#66bb6a;"></span> 低密度区 <span class="density-range"></span></div>
+      </div>
+      <div class="legend-section">
+        <div class="legend-label">▎企业规模</div>
+        <div class="legend-item"><span class="legend-marker large"></span> 大型企业（高新技术）</div>
+        <div class="legend-item"><span class="legend-marker medium"></span> 中型企业（一般公司）</div>
+        <div class="legend-item"><span class="legend-marker small"></span> 小型企业（工厂/制造）</div>
+      </div>
+      <div class="legend-section">
+        <div class="legend-label">▎辐射图</div>
+        <div class="legend-item"><span class="legend-line"></span> 城市辐射范围（15km）</div>
+      </div>
+    </div>
+
+    <div class="panel" id="searchResultPanel">
+      <h3>搜索结果</h3>
+      <div id="searchResultList"></div>
+    </div>
+    <div class="panel">
+      <h3>各城市企业数量统计</h3>
+      <canvas id="chart-canvas">各城市企业数量统计柱状图</canvas>
+    </div>
+
+    <div class="panel">
+      <h3>专题制图方法</h3>
+      <div class="method-desc">
+        <span class="tag">①分级统计图法</span> 按区县统计企业密度，色阶填充。<br>
+        <span class="tag">②分区统计图表法</span> 城市中心饼图展示规模占比。<br>
+        <span class="tag">③分级符号法</span> 不同大小符号标注企业位置。<br>
+        <span class="tag">④统计图表法</span> 侧边栏柱状图展示企业数量。<br>
+        <span class="tag">⑤范围法</span> 各市中心15km辐射影响力圈。
+      </div>
+    </div>
+
+    <div class="footer-info">
+      数据来源：POI采集 · 底图：百度地图 · 制图时间：2026.06
+    </div>
+  </div>
+</div>
+
+<script src="https://api.map.baidu.com/api?type=webgl&v=1.0&ak=szmJ5Oc3byDHwzN2BEyJbORdKlKXcGdk"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var darkBtn = document.getElementById('darkToggle');
+  var lightStyle, darkStyle;
+  if (darkBtn) {
+    darkBtn.addEventListener('click', function() {
+      var isDark = document.body.classList.toggle('dark');
+      darkBtn.textContent = isDark ? '☀️' : '🌙';
+      if (typeof map !== 'undefined' && map && map.setMapStyleV2) {
+        if (!lightStyle) {
+          lightStyle = { styleJson: [
+            { featureType: 'water', elementType: 'geometry', stylers: { color: '#e8f5e9' } },
+            { featureType: 'land', elementType: 'geometry', stylers: { color: '#f1f8e9' } },
+            { featureType: 'green', elementType: 'geometry', stylers: { color: '#c8e6c9' } },
+            { featureType: 'building', elementType: 'geometry', stylers: { color: '#ffffff' } },
+            { featureType: 'highway', elementType: 'geometry', stylers: { color: '#a5d6a7' } },
+            { featureType: 'arterial', elementType: 'geometry', stylers: { color: '#c8e6c9' } },
+            { featureType: 'local', elementType: 'geometry', stylers: { color: '#e0e0e0' } },
+            { featureType: 'label', elementType: 'labels', stylers: { color: '#1b5e20', visibility: 'on' } },
+            { featureType: 'boundary', elementType: 'geometry', stylers: { color: '#4caf50', weight: 1, opacity: 0.5 } },
+            { featureType: 'district', elementType: 'labels', stylers: { visibility: 'on', color: '#2e7d32', fontsize: 11 } }
+          ]};
+          darkStyle = { styleJson: [
+            { featureType: 'water', elementType: 'geometry', stylers: { color: '#1a237e' } },
+            { featureType: 'land', elementType: 'geometry', stylers: { color: '#121220' } },
+            { featureType: 'green', elementType: 'geometry', stylers: { color: '#1a3a1a' } },
+            { featureType: 'building', elementType: 'geometry', stylers: { color: '#1e1e32' } },
+            { featureType: 'highway', elementType: 'geometry', stylers: { color: '#2c3e50' } },
+            { featureType: 'arterial', elementType: 'geometry', stylers: { color: '#1a2332' } },
+            { featureType: 'local', elementType: 'geometry', stylers: { color: '#181828' } },
+            { featureType: 'label', elementType: 'labels', stylers: { color: '#80cbc4', visibility: 'on' } },
+            { featureType: 'boundary', elementType: 'geometry', stylers: { color: '#4db6ac', weight: 1, opacity: 0.5 } },
+            { featureType: 'district', elementType: 'labels', stylers: { visibility: 'on', color: '#80cbc4', fontsize: 11 } }
+          ]};
+        }
+        map.setMapStyleV2(isDark ? darkStyle : lightStyle);
+      }
+    });
+  }
+
+  var fsBtn = document.getElementById('fullscreenBtn');
+  if (fsBtn) {
+    fsBtn.addEventListener('click', function() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+  }
+
+  var searchInput = document.getElementById('searchInput');
+  var searchDropdown = document.getElementById('searchDropdown');
+  var searchClear = document.getElementById('searchClear');
+  var searchToast = document.getElementById('searchToast');
+  var searchResultPanel = document.getElementById('searchResultPanel');
+  var searchResultList = document.getElementById('searchResultList');
+  var dropdownHighlight = -1;
+  var searchDebounce = null;
+
+  function searchMatch(q) {
+    if (!q || !enterprisesData) return [];
+    try {
+      var result = [];
+      for (var i = 0; i < enterprisesData.length; i++) {
+        var e = enterprisesData[i];
+        if ((e.n && e.n.indexOf(q) !== -1) ||
+            (e.c && e.c.indexOf(q) !== -1) ||
+            (e.d && e.d.indexOf(q) !== -1) ||
+            (e.t && e.t.indexOf(q) !== -1) ||
+            (e.addr && e.addr.indexOf(q) !== -1)) {
+          e.idx = i;
+          result.push(e);
+        }
+      }
+      return result;
+    } catch(ex) { return []; }
+  }
+
+  function showToast(msg) {
+    searchToast.textContent = msg;
+    searchToast.classList.add('show');
+    clearTimeout(searchToast._timer);
+    searchToast._timer = setTimeout(function() { searchToast.classList.remove('show'); }, 2200);
+  }
+
+  function openEnterpriseOnMap(e) {
+    if (!map) return;
+    map.centerAndZoom(new BMapGL.Point(e.lng, e.lat), 15);
+    var c = '<div class="info-window"><h4>' + e.n + '</h4><p><span class="size-tag">' + sizeLabels[e.s] + '</span></p><p><span class="highlight">所在城市：</span>' + e.c + '</p><p><span class="highlight">所属区县：</span>' + (e.d || '') + '</p>' + (e.t ? '<p><span class="highlight">行业类型：</span>' + e.t.split('|').pop() + '</p>' : '') + '</div>';
+    map.openInfoWindow(new BMapGL.InfoWindow(c, { width: 240, title: '', enableAutoPan: true }), new BMapGL.Point(e.lng, e.lat));
+  }
+
+  function renderSidebarResults(matches, q) {
+    if (!matches || matches.length === 0) { searchResultPanel.classList.remove('show'); return; }
+    var html = '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">找到 ' + matches.length + ' 条匹配</div>';
+    matches.slice(0, 50).forEach(function(e) {
+      var name = e.n;
+      if (q) {
+        var idx = name.indexOf(q);
+        if (idx !== -1) name = name.slice(0, idx) + '<strong>' + name.slice(idx, idx + q.length) + '</strong>' + name.slice(idx + q.length);
+      }
+      html += '<div class="sr-item" data-lng="' + e.lng + '" data-lat="' + e.lat + '" data-idx="' + e.idx + '"><div class="sr-name">' + name + '</div><div class="sr-info">' + e.c + (e.d ? ' · ' + e.d : '') + (e.t ? ' · ' + e.t.split('|').pop() : '') + '</div></div>';
+    });
+    if (matches.length > 50) html += '<div style="font-size:10px;color:var(--text-muted);text-align:center;padding:4px;">仅显示前 50 条</div>';
+    searchResultList.innerHTML = html;
+    searchResultPanel.classList.add('show');
+    // Bind click
+    searchResultList.querySelectorAll('.sr-item').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var e = enterprisesData[parseInt(this.getAttribute('data-idx'))];
+        if (e) openEnterpriseOnMap(e);
+      });
+    });
+  }
+
+  function doSearch(q) {
+    dropdownHighlight = -1;
+    if (!q) { searchDropdown.style.display = 'none'; return; }
+    var matches = searchMatch(q);
+    if (matches.length === 0) {
+      searchDropdown.innerHTML = '<div class="search-dropdown-item"><span class="sd-nomatch">未找到匹配结果</span></div>';
+      searchDropdown.style.display = 'block';
+      searchResultPanel.classList.remove('show');
+      return;
+    }
+    // Dropdown: show top 8
+    var html = '';
+    var count = Math.min(matches.length, 8);
+    for (var i = 0; i < count; i++) {
+      var e = matches[i];
+      html += '<div class="search-dropdown-item" data-idx="' + e.idx + '">' + e.n + '<span class="sd-city">' + e.c + '</span></div>';
+    }
+    if (matches.length > 8) html += '<div class="search-dropdown-item" style="color:rgba(255,255,255,0.3);font-size:11px;text-align:center;cursor:default;">… 还有 ' + (matches.length - 8) + ' 条，按 Enter 查看全部</div>';
+    searchDropdown.innerHTML = html;
+    searchDropdown.style.display = 'block';
+    // Bind hover click
+    searchDropdown.querySelectorAll('.search-dropdown-item[data-idx]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var e = enterprisesData[parseInt(this.getAttribute('data-idx'))];
+        if (e) { openEnterpriseOnMap(e); renderSidebarResults(matches, q); searchDropdown.style.display = 'none'; }
+      });
+      el.addEventListener('mouseenter', function() {
+        searchDropdown.querySelectorAll('.search-dropdown-item').forEach(function(d) { d.classList.remove('highlight'); });
+        this.classList.add('highlight');
+      });
+    });
+  }
+
+  if (searchInput) {
+    // Input -> debounced dropdown
+    searchInput.addEventListener('input', function() {
+      var q = this.value.trim();
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(function() { doSearch(q); }, 250);
+      if (!q) { searchDropdown.style.display = 'none'; searchResultPanel.classList.remove('show'); }
+    });
+
+    // Focus -> show dropdown if value
+    searchInput.addEventListener('focus', function() {
+      var q = this.value.trim();
+      if (q) { doSearch(q); }
+    });
+
+    // Blur -> hide dropdown (delayed for click)
+    searchInput.addEventListener('blur', function() {
+      setTimeout(function() { searchDropdown.style.display = 'none'; }, 200);
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+      var items = searchDropdown.querySelectorAll('.search-dropdown-item[data-idx]');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        dropdownHighlight = Math.min(dropdownHighlight + 1, items.length - 1);
+        items.forEach(function(d, i) { d.classList.toggle('highlight', i === dropdownHighlight); });
+        if (items[dropdownHighlight]) items[dropdownHighlight].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        dropdownHighlight = Math.max(dropdownHighlight - 1, -1);
+        items.forEach(function(d, i) { d.classList.toggle('highlight', i === dropdownHighlight); });
+      } else if (e.key === 'Enter') {
+        var q = this.value.trim();
+        if (!q || typeof map === 'undefined' || !map) return;
+        // If dropdown highlighted, pick that item
+        if (dropdownHighlight >= 0 && items[dropdownHighlight]) {
+          var e = enterprisesData[parseInt(items[dropdownHighlight].getAttribute('data-idx'))];
+          if (e) { openEnterpriseOnMap(e); searchDropdown.style.display = 'none'; }
+          return;
+        }
+        var matches = searchMatch(q);
+        if (matches.length > 0) {
+          openEnterpriseOnMap(matches[0]);
+          renderSidebarResults(matches, q);
+        } else {
+          showToast('未找到匹配 "' + q + '"');
+        }
+        searchDropdown.style.display = 'none';
+      } else if (e.key === 'Escape') {
+        searchDropdown.style.display = 'none';
+      }
+    });
+  }
+
+  // Clear button
+  if (searchClear) {
+    searchClear.addEventListener('click', function() {
+      searchInput.value = '';
+      searchInput.focus();
+      searchDropdown.style.display = 'none';
+      searchResultPanel.classList.remove('show');
+    });
+  }
+
+  document.querySelectorAll('.scale-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.scale-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var scale = btn.getAttribute('data-scale');
+      var sel = document.getElementById('filterScale');
+      if (sel) { sel.value = scale; }
+      if (typeof applyFilters === 'function') { applyFilters(); }
+    });
+  });
+});
+</script>
+</body>
+</html>
